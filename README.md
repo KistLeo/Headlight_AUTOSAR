@@ -1,220 +1,68 @@
-To properly define the **OS configuration (Os.oil) and Os.c file** for your **HEADLIGHT AUTOMATICS** project following AUTOSAR, you need to ensure that the tasks, events, and alarms are properly structured. Here’s my breakdown of how to **clear the structure** for coding:
+---
+
+# Headlight Automatics Project 
+
+## Overview
+The **Headlight Automatics** project is an AUTOSAR-compliant embedded system designed to control vehicle headlights automatically based on sensor inputs (speed, steering, ambient light, and camera data). It leverages an AUTOSAR OS to manage tasks, events, and alarms for real-time execution, ensuring reliable headlight operation under varying conditions.
 
 ---
 
-### **Steps to Define Alarms, Events, and Task Mapping**
-1. **Identify Tasks and Runnables:**  
-   - Each **task** contains specific **runnables** that are executed based on timing or event triggers.
-   
-2. **Define Events for Synchronization:**  
-   - AUTOSAR OS requires events for synchronization between tasks and runnables.
-   - Events are used for **Data Received Events** and **Timing Events**.
+## Project Structure
+The project follows a modular AUTOSAR architecture, integrating **Basic Software (BSW)** and **Software Components (SWC)** with clearly defined tasks, events, and timing mechanisms:
 
-3. **Define Alarms for Periodic Activation:**  
-   - **Timing Events** will be mapped to Alarms.
-   - Alarms will trigger OS events to wake up tasks.
+- **Os.oil**: Configures the AUTOSAR OS with tasks, events, alarms, and counters for real-time scheduling.
+- **Os.c**: Implements task execution and event handling, interfacing with the OS and RTE.
+- **Runnables**: Defined within **SWCs**, mapped to tasks, and triggered by timing events (e.g., periodic alarms) or data-received events (e.g., sensor updates).
+- **RTE (Runtime Environment)**: Facilitates seamless data flow and communication between **SWC runnables** and **BSW** modules.
+- **BSW (Basic Software)**: Provides foundational services (e.g., OS, communication, diagnostics) and integrates with hardware, supporting **SWC** execution.
+- **SWC (Software Components)**: Contain the application logic as runnables (e.g., `ReadSpeedAndSteering()`, `ComputeHeadlightLogic()`), interacting with the BSW via the RTE.
 
----
-
-## **Refined Table: Mapping Runnables, OS Events, and Alarms**
-| Runnable | Mapped Task | Trigger Condition | OS Event | RTE Event | Alarm (if timing event) |
-|----------|------------|-------------------|----------|-----------|--------------------------|
-| ReadSpeedAndSteering() | Task_SensorProcessing | Every 100ms | Ev_SensorUpdate | Timing Event | Alarm_SensorUpdate |
-| SendSensorData() | Task_SensorProcessing | After ReadSpeedAndSteering() | Ev_SensorDataSent | Data Received Event | - |
-| ReceiveSensorData() | Task_HeadlightInput | On Data Received from SendSensorData() | Ev_HeadlightInput | Data Received Event | - |
-| ReadAmbientLight() | Task_HeadlightInput | Every 100ms | Ev_AmbientLightUpdate | Timing Event | Alarm_AmbientLightUpdate |
-| ReadCameraData() | Task_HeadlightInput | On New Camera Data Available | Ev_CameraUpdate | Data Received Event | - |
-| ComputeHeadlightLogic() | Task_HeadlightLogic | On Data Update (ReceiveSensorData, ReadAmbientLight, ReadCameraData) | Ev_HeadlightLogicUpdated | Data Received Event | - |
-| SendHeadlightCommand() | Task_HeadlightControl | On Data Update from ComputeHeadlightLogic() | Ev_HeadlightCommandSent | Data Received Event | - |
-| ReceiveHeadlightCommand() | Task_HeadlightControl | On Data Received Event | Ev_HeadlightCommandReceived | Data Received Event | - |
-| ControlHeadlights() | Task_HeadlightControl | On New Headlight Command Available | Ev_HeadlightControlUpdated | Data Received Event | - |
-| ControlHeadlights() | Task_HeadlightFeedback | Every 500ms | Ev_HeadlightStateUpdate | Timing Event | Alarm_HeadlightStateUpdate |
 
 ---
 
-## **Os.oil Configuration**
-Here is the **Os.oil** configuration that includes **tasks, events, alarms, and resources**:
+## Key Components
+### 1. Tasks
+Five tasks handle specific functionalities:
+- **Task_SensorProcessing**: Processes speed and steering data.
+- **Task_HeadlightInput**: Gathers ambient light and camera inputs.
+- **Task_HeadlightLogic**: Computes headlight control logic.
+- **Task_HeadlightControl**: Sends and receives headlight commands.
+- **Task_HeadlightFeedback**: Monitors headlight state periodically.
 
-```oil
-OIL_VERSION = "4.0";
+### 2. Events
+Events synchronize runnables:
+- **Timing Events**: Trigger periodic actions (e.g., `Ev_SensorUpdate`).
+- **Data Received Events**: Handle data-driven execution (e.g., `Ev_HeadlightInput`).
 
-CPU myECU {
-  
-  OS myOS {
-    STATUS = EXTENDED;
-    STARTUPHOOK = TRUE;
-    SHUTDOWNHOOK = TRUE;
-    ERRORHOOK = TRUE;
-    USERESSCHEDULER = FALSE;
-  };
+### 3. Alarms
+Alarms ensure periodic task activation:
+- `Alarm_SensorUpdate` (100ms): Triggers sensor reads.
+- `Alarm_AmbientLightUpdate` (100ms): Updates ambient light data.
+- `Alarm_HeadlightStateUpdate` (500ms): Monitors headlight feedback.
 
-  /* TASK Definitions */
-  TASK Task_SensorProcessing {
-    PRIORITY = 3;
-    AUTOSTART = TRUE;
-    ACTIVATION = 1;
-    SCHEDULE = FULL;
-    EVENT = Ev_SensorUpdate;
-    EVENT = Ev_SensorDataSent;
-  };
+### 4. Configuration (Os.oil)
+- Defines tasks with priorities (1–5), events, and alarms.
+- Uses `SystemTimer` counter for timing precision.
 
-  TASK Task_HeadlightInput {
-    PRIORITY = 2;
-    AUTOSTART = TRUE;
-    ACTIVATION = 1;
-    SCHEDULE = FULL;
-    EVENT = Ev_HeadlightInput;
-    EVENT = Ev_AmbientLightUpdate;
-    EVENT = Ev_CameraUpdate;
-  };
-
-  TASK Task_HeadlightLogic {
-    PRIORITY = 4;
-    AUTOSTART = TRUE;
-    ACTIVATION = 1;
-    SCHEDULE = FULL;
-    EVENT = Ev_HeadlightLogicUpdated;
-  };
-
-  TASK Task_HeadlightControl {
-    PRIORITY = 5;
-    AUTOSTART = TRUE;
-    ACTIVATION = 1;
-    SCHEDULE = FULL;
-    EVENT = Ev_HeadlightCommandSent;
-    EVENT = Ev_HeadlightCommandReceived;
-    EVENT = Ev_HeadlightControlUpdated;
-  };
-
-  TASK Task_HeadlightFeedback {
-    PRIORITY = 1;
-    AUTOSTART = TRUE;
-    ACTIVATION = 1;
-    SCHEDULE = FULL;
-    EVENT = Ev_HeadlightStateUpdate;
-  };
-
-  /* EVENT Definitions */
-  EVENT Ev_SensorUpdate {};
-  EVENT Ev_SensorDataSent {};
-  EVENT Ev_HeadlightInput {};
-  EVENT Ev_AmbientLightUpdate {};
-  EVENT Ev_CameraUpdate {};
-  EVENT Ev_HeadlightLogicUpdated {};
-  EVENT Ev_HeadlightCommandSent {};
-  EVENT Ev_HeadlightCommandReceived {};
-  EVENT Ev_HeadlightControlUpdated {};
-  EVENT Ev_HeadlightStateUpdate {};
-
-  /* ALARM Definitions */
-  ALARM Alarm_SensorUpdate {
-    COUNTER = SystemTimer;
-    ACTION = SETEVENT { TASK = Task_SensorProcessing; EVENT = Ev_SensorUpdate; };
-    AUTOSTART = TRUE { ALARMTIME = 100; CYCLETIME = 100; };
-  };
-
-  ALARM Alarm_AmbientLightUpdate {
-    COUNTER = SystemTimer;
-    ACTION = SETEVENT { TASK = Task_HeadlightInput; EVENT = Ev_AmbientLightUpdate; };
-    AUTOSTART = TRUE { ALARMTIME = 100; CYCLETIME = 100; };
-  };
-
-  ALARM Alarm_HeadlightStateUpdate {
-    COUNTER = SystemTimer;
-    ACTION = SETEVENT { TASK = Task_HeadlightFeedback; EVENT = Ev_HeadlightStateUpdate; };
-    AUTOSTART = TRUE { ALARMTIME = 500; CYCLETIME = 500; };
-  };
-
-  /* COUNTER */
-  COUNTER SystemTimer {
-    MINCYCLE = 1;
-    MAXALLOWEDVALUE = 1000;
-    TICKSPERBASE = 1;
-  };
-};
-```
+### 5. Implementation (Os.c)
+- Tasks wait for events, execute runnables, and clear events.
+- Integrates with RTE for data exchange (e.g., `Rte_HeadlightAutomatics.h`).
 
 ---
 
-## **Os.c Implementation for Event and Alarm Handling**
-```c
-#include "Os.h"
-#include "Rte_HeadlightAutomatics.h"
-
-TASK(Task_SensorProcessing) {
-    EventMaskType ev;
-    WaitEvent(Ev_SensorUpdate | Ev_SensorDataSent);
-    GetEvent(Task_SensorProcessing, &ev);
-    
-    if (ev & Ev_SensorUpdate) {
-        ClearEvent(Ev_SensorUpdate);
-        ReadSpeedAndSteering();
-    }
-    if (ev & Ev_SensorDataSent) {
-        ClearEvent(Ev_SensorDataSent);
-        SendSensorData();
-    }
-    TerminateTask();
-}
-
-TASK(Task_HeadlightInput) {
-    EventMaskType ev;
-    WaitEvent(Ev_HeadlightInput | Ev_AmbientLightUpdate | Ev_CameraUpdate);
-    GetEvent(Task_HeadlightInput, &ev);
-
-    if (ev & Ev_HeadlightInput) {
-        ClearEvent(Ev_HeadlightInput);
-        ReceiveSensorData();
-    }
-    if (ev & Ev_AmbientLightUpdate) {
-        ClearEvent(Ev_AmbientLightUpdate);
-        ReadAmbientLight();
-    }
-    if (ev & Ev_CameraUpdate) {
-        ClearEvent(Ev_CameraUpdate);
-        ReadCameraData();
-    }
-    TerminateTask();
-}
-
-TASK(Task_HeadlightLogic) {
-    EventMaskType ev;
-    WaitEvent(Ev_HeadlightLogicUpdated);
-    GetEvent(Task_HeadlightLogic, &ev);
-
-    if (ev & Ev_HeadlightLogicUpdated) {
-        ClearEvent(Ev_HeadlightLogicUpdated);
-        ComputeHeadlightLogic();
-    }
-    TerminateTask();
-}
-
-TASK(Task_HeadlightControl) {
-    EventMaskType ev;
-    WaitEvent(Ev_HeadlightCommandSent | Ev_HeadlightCommandReceived | Ev_HeadlightControlUpdated);
-    GetEvent(Task_HeadlightControl, &ev);
-
-    if (ev & Ev_HeadlightCommandSent) {
-        ClearEvent(Ev_HeadlightCommandSent);
-        SendHeadlightCommand();
-    }
-    if (ev & Ev_HeadlightCommandReceived) {
-        ClearEvent(Ev_HeadlightCommandReceived);
-        ReceiveHeadlightCommand();
-    }
-    if (ev & Ev_HeadlightControlUpdated) {
-        ClearEvent(Ev_HeadlightControlUpdated);
-        ControlHeadlights();
-    }
-    TerminateTask();
-}
-```
+## Detailed Workflow
+1. **Sensor Data Collection**: `Task_SensorProcessing` reads speed/steering every 100ms and sends data.
+2. **Input Processing**: `Task_HeadlightInput` collects ambient light (100ms) and camera data (event-driven).
+3. **Logic Computation**: `Task_HeadlightLogic` processes inputs to determine headlight behavior.
+4. **Command Execution**: `Task_HeadlightControl` sends/receives commands to adjust headlights.
+5. **Feedback Loop**: `Task_HeadlightFeedback` checks headlight state every 500ms.
 
 ---
 
-### **Final Notes**
-- **Os.oil defines tasks, alarms, and events**.
-- **Os.c handles event-based execution**.
-- **Each event is mapped properly to the RTE runnable trigger conditions**.
-  
-This **clear structure** ensures correctness in your **AUTOSAR HEADLIGHT AUTOMATICS** project. 🚗💡 Let me know if you need refinements! 🚀
+## Setup and Usage
+- **Prerequisites**: AUTOSAR-compliant toolchain (e.g., Vector, EB tresos).
+- **Configuration**: Edit `Os.oil` for task priorities or alarm timings as needed.
+- **Build**: Compile `Os.c` with RTE and OS headers.
+- **Deploy**: Flash to an ECU supporting AUTOSAR OS.
+
+---
