@@ -6,6 +6,7 @@
 The **Headlight Automatics** project is an AUTOSAR-compliant embedded system designed to control vehicle headlights automatically based on sensor inputs (speed, steering, ambient light, and camera data). It leverages an AUTOSAR OS to manage tasks, events, and alarms for real-time execution, ensuring reliable headlight operation under varying conditions.
 
 ---
+![alt text](image-1.png)
 
 ## Project Structure
 The project follows a modular AUTOSAR architecture, integrating **Basic Software (BSW)** and **Software Components (SWC)** with clearly defined tasks, events, and timing mechanisms:
@@ -58,6 +59,7 @@ Alarms ensure periodic task activation:
 5. **Feedback Loop**: `Task_HeadlightFeedback` checks headlight state every 500ms.
 
 ---
+![alt text](image.png)
 
 ## Setup and Usage
 - **Prerequisites**: AUTOSAR-compliant toolchain (e.g., Vector, EB tresos).
